@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Security Operations | bidur123</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --green: #00ff64;
+    --blue: #00c8ff;
+    --dark: #000d06;
+    --panel: rgba(0,20,10,0.85);
+  }
+  body {
+    background: var(--dark);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID BG ── */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,255,100,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,100,0.035) 1px, transparent 1px);
+    background-size: 44px 44px;
+    animation: gridMove 25s linear infinite;
+    pointer-events: none; z-index:0;
+  }
+  @keyframes gridMove { to { background-position: 44px 44px; } }
+
+  /* ── SCANLINE ── */
+  body::after {
+    content:'';
+    position:fixed; left:0; right:0; height:2px;
+    background: linear-gradient(90deg,transparent,rgba(0,255,100,0.25),transparent);
+    animation: scan 7s linear infinite;
+    pointer-events:none; z-index:1;
+  }
+  @keyframes scan { 0%{top:0} 100%{top:100vh} }
+
+  /* ── LAYOUT ── */
+  .page { position:relative; z-index:2; max-width:1100px; margin:0 auto; padding:24px; }
+
+  /* ── CORNER BRACKETS ── */
+  .corner { position:fixed; width:44px; height:44px; }
+  .c-tl { top:12px; left:12px; border-top:2px solid var(--green); border-left:2px solid var(--green); }
+  .c-tr { top:12px; right:12px; border-top:2px solid var(--green); border-right:2px solid var(--green); }
+  .c-bl { bottom:12px; left:12px; border-bottom:2px solid var(--green); border-left:2px solid var(--green); }
+  .c-br { bottom:12px; right:12px; border-bottom:2px solid var(--green); border-right:2px solid var(--green); }
+
+  /* ── HEADER ── */
+  .header {
+    text-align:center;
+    padding: 40px 20px 30px;
+    border-bottom:1px solid rgba(0,255,100,0.15);
+    margin-bottom:32px;
+  }
+  .header .sys-label {
+    font-size:10px; letter-spacing:6px;
+    color:rgba(0,255,100,0.45); margin-bottom:10px;
+    animation: blink 2s step-end infinite;
+  }
+  @keyframes blink { 50%{ opacity:0.2; } }
+  .header h1 {
+    font-family:'Orbitron',monospace; font-size:clamp(28px,5vw,52px);
+    font-weight:900; letter-spacing:6px; color:#fff;
+    text-shadow: 0 0 20px rgba(0,255,100,0.5), 0 0 50px rgba(0,255,100,0.2);
+  }
+  .header h1 span { color:var(--green); }
+  .header .subtitle {
+    font-family:'Orbitron',monospace; font-size:clamp(10px,1.5vw,14px);
+    letter-spacing:8px; color:var(--green); opacity:0.7; margin-top:8px;
+  }
+
+  /* ── CERT BADGES ── */
+  .badges {
+    display:flex; flex-wrap:wrap; justify-content:center;
+    gap:10px; margin-bottom:32px;
+  }
+  .badge {
+    display:inline-flex; align-items:center; gap:8px;
+    padding:8px 16px; border-radius:4px;
+    font-family:'Orbitron',monospace; font-size:10px;
+    font-weight:700; letter-spacing:2px;
+    border:1px solid; cursor:default;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .badge:hover { transform:translateY(-2px); }
+  .badge.k8s { background:rgba(50,108,229,0.15); border-color:#326CE5; color:#6699ff;
+    box-shadow:0 0 12px rgba(50,108,229,0.2); }
+  .badge.k8s:hover { box-shadow:0 0 20px rgba(50,108,229,0.5); }
+  .badge.aws { background:rgba(255,153,0,0.1); border-color:#FF9900; color:#ffb84d;
+    box-shadow:0 0 12px rgba(255,153,0,0.2); }
+  .badge.aws:hover { box-shadow:0 0 20px rgba(255,153,0,0.5); }
+  .badge svg { width:16px; height:16px; }
+
+  /* ── DASHBOARD GRID ── */
+  .dashboard { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:24px; }
+  @media(max-width:768px){ .dashboard{ grid-template-columns:1fr; } }
+
+  .stat-card {
+    background:var(--panel); border:1px solid rgba(0,255,100,0.2);
+    border-radius:6px; padding:18px; text-align:center;
+    position:relative; overflow:hidden;
+  }
+  .stat-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:1px;
+    background:linear-gradient(90deg,transparent,var(--green),transparent);
+    animation: shimmer 3s ease-in-out infinite;
+  }
+  @keyframes shimmer { 0%,100%{opacity:0.3} 50%{opacity:1} }
+  .stat-label { font-size:9px; letter-spacing:3px; color:rgba(0,255,100,0.5); margin-bottom:10px; }
+  .stat-value { font-family:'Orbitron',monospace; font-size:22px; font-weight:700;
+    color:var(--green); text-shadow:0 0 10px var(--green); }
+  .stat-sub { font-size:8px; color:rgba(0,255,100,0.4); margin-top:6px; letter-spacing:2px; }
+  .stat-card.blue .stat-value { color:var(--blue); text-shadow:0 0 10px var(--blue); }
+  .stat-card.blue { border-color:rgba(0,200,255,0.2); }
+
+  /* Live dot */
+  .live-dot {
+    display:inline-block; width:8px; height:8px; border-radius:50%;
+    background:var(--green); box-shadow:0 0 8px var(--green);
+    margin-right:6px; vertical-align:middle;
+    animation: livePulse 1.5s ease-in-out infinite;
+  }
+  @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(0.8)} }
+
+  /* Threat bars */
+  .threat-bars { display:flex; gap:4px; justify-content:center; margin-top:10px; }
+  .bar { width:14px; height:8px; border-radius:2px; }
+
+  /* ── MAIN SHIELD VISUAL ── */
+  .shield-section {
+    display:flex; justify-content:center; align-items:center;
+    padding:20px 0 32px; position:relative;
+  }
+  .shield-svg { width:min(500px,90vw); filter:drop-shadow(0 0 30px rgba(0,255,100,0.3)); }
+
+  /* ── TOOLS GRID ── */
+  .section-title {
+    font-family:'Orbitron',monospace; font-size:14px; font-weight:700;
+    color:#fff; letter-spacing:4px; margin-bottom:16px; padding-bottom:8px;
+    border-bottom:1px solid rgba(0,255,100,0.15);
+  }
+  .section-title span { color:var(--green); }
+
+  .tools-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:12px; margin-bottom:32px; }
+  .tool-card {
+    background:var(--panel); border-radius:6px; padding:14px;
+    border:1px solid rgba(0,255,100,0.15); text-align:center;
+    transition:all 0.3s; cursor:default; position:relative; overflow:hidden;
+  }
+  .tool-card:hover {
+    border-color:var(--green); transform:translateY(-3px);
+    box-shadow:0 8px 24px rgba(0,255,100,0.2);
+  }
+  .tool-card::after {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(135deg,rgba(0,255,100,0.04),transparent);
+    opacity:0; transition:opacity 0.3s;
+  }
+  .tool-card:hover::after { opacity:1; }
+  .tool-name { font-family:'Orbitron',monospace; font-size:11px; font-weight:700; color:var(--green); margin-bottom:6px; }
+  .tool-desc { font-size:9px; color:rgba(255,255,255,0.4); letter-spacing:1px; line-height:1.4; }
+  .tool-dot {
+    width:6px; height:6px; border-radius:50%; background:var(--green);
+    margin:0 auto 8px; box-shadow:0 0 6px var(--green);
+    animation:livePulse 2s ease-in-out infinite;
+  }
+  .tool-card.blue .tool-name { color:var(--blue); }
+  .tool-card.blue .tool-dot { background:var(--blue); box-shadow:0 0 6px var(--blue); animation-delay:0.5s; }
+
+  /* ── OPERATIONS ── */
+  .ops-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:32px; }
+  @media(max-width:600px){ .ops-grid{ grid-template-columns:1fr; } }
+  .op-card {
+    background:var(--panel); border-radius:6px; padding:20px;
+    border:1px solid rgba(0,255,100,0.15); transition:all 0.3s;
+  }
+  .op-card:hover { border-color:rgba(0,255,100,0.4); box-shadow:0 4px 20px rgba(0,255,100,0.1); }
+  .op-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .op-icon { font-size:20px; }
+  .op-title { font-family:'Orbitron',monospace; font-size:12px; font-weight:700; color:#fff; letter-spacing:2px; }
+  .op-body { font-size:11px; color:rgba(255,255,255,0.55); line-height:1.8; }
+  .op-tag {
+    display:inline-block; padding:2px 8px; border-radius:3px; font-size:9px;
+    letter-spacing:2px; margin:2px; border:1px solid rgba(0,255,100,0.3);
+    color:rgba(0,255,100,0.7); background:rgba(0,255,100,0.05);
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align:center; padding:24px;
+    border-top:1px solid rgba(0,255,100,0.1);
+    font-size:9px; letter-spacing:3px; color:rgba(0,255,100,0.3);
+  }
+  .footer a { color:rgba(0,200,255,0.5); text-decoration:none; }
+
+  /* ── TERMINAL LINE ── */
+  .terminal-bar {
+    background:rgba(0,20,10,0.9); border:1px solid rgba(0,255,100,0.2);
+    border-radius:4px; padding:10px 16px; margin-bottom:32px;
+    font-size:11px; color:rgba(0,255,100,0.6); letter-spacing:1px;
+    white-space:nowrap; overflow:hidden;
+  }
+  .terminal-bar .cursor {
+    display:inline-block; width:8px; height:12px;
+    background:var(--green); vertical-align:middle; margin-left:2px;
+    animation:blink 1s step-end infinite;
+  }
+</style>
+</head>
+<body>
+
+<!-- Corner brackets -->
+<div class="corner c-tl"></div>
+<div class="corner c-tr"></div>
+<div class="corner c-bl"></div>
+<div class="corner c-br"></div>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="sys-label">▸ SYSTEM INITIALIZED · SECURITY OPS ACTIVE ▸</div>
+    <h1><span>MCP</span> SERVER</h1>
+    <div class="subtitle">SECURITY OPERATIONS CENTER</div>
+  </div>
+
+  <!-- TERMINAL LINE -->
+  <div class="terminal-bar">
+    &gt;_ ENCRYPT::AES-256-GCM &nbsp;|&nbsp; AUTH::ZERO-TRUST &nbsp;|&nbsp; TLS::1.3 &nbsp;|&nbsp; INTEGRATIONS::6 &nbsp;|&nbsp; THREAT::LOW &nbsp;|&nbsp; STATUS::SECURE
+    <span class="cursor"></span>
+  </div>
+
+  <!-- CERT BADGES -->
+  <div class="badges">
+    <div class="badge k8s">
+      <svg viewBox="0 0 24 24" fill="#326CE5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      CKS
+    </div>
+    <div class="badge k8s">
+      <svg viewBox="0 0 24 24" fill="#326CE5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      CKAD
+    </div>
+    <div class="badge k8s">
+      <svg viewBox="0 0 24 24" fill="#326CE5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      CKA
+    </div>
+    <div class="badge aws">
+      <svg viewBox="0 0 24 24" fill="#FF9900"><path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.064.056.128.056.184 0 .08-.048.16-.152.24l-.504.336a.383.383 0 01-.208.072c-.08 0-.16-.04-.24-.112a2.49 2.49 0 01-.288-.376 6.18 6.18 0 01-.248-.471c-.623.734-1.405 1.101-2.347 1.101-.671 0-1.205-.192-1.597-.576-.392-.384-.591-.894-.591-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.839.064.287.04.583.104.895.176v-.568c0-.607-.127-1.03-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.295.072-.583.16-.863.272a2.287 2.287 0 01-.28.104.488.488 0 01-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 01.224-.167c.28-.144.616-.264 1.005-.36a4.84 4.84 0 011.246-.151c.95 0 1.644.216 2.091.647.439.43.663 1.083.663 1.955v2.571zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 00-.727-.136 5.952 5.952 0 00-.743-.048c-.528 0-.917.104-1.178.32-.26.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.81.296zm6.324.839c-.144 0-.24-.024-.304-.08-.063-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 01-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.246-5.284c.04-.16.088-.264.151-.312a.549.549 0 01.32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 01.311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 01-.056.2l-1.923 6.148c-.048.16-.104.263-.168.311a.51.51 0 01-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.32l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.32-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 01-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 00.415-.758.777.777 0 00-.215-.559c-.144-.151-.416-.287-.807-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 01-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.815-.415.304-.096.624-.144.958-.144.168 0 .343.008.51.032.176.024.336.056.487.088.144.04.279.08.407.127.128.048.224.096.296.144a.605.605 0 01.208.183.43.43 0 01.056.222v.375c0 .168-.064.256-.184.256a.83.83 0 01-.303-.096 3.652 3.652 0 00-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.159.152.454.304.877.44l1.134.358c.574.184.99.44 1.237.767.247.329.371.703.371 1.116 0 .343-.072.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.743.167-1.157.167z"/></svg>
+      DEVOPS PRO
+    </div>
+    <div class="badge aws">
+      <svg viewBox="0 0 24 24" fill="#FF9900"><path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.064.056.128.056.184 0 .08-.048.16-.152.24l-.504.336a.383.383 0 01-.208.072c-.08 0-.16-.04-.24-.112a2.49 2.49 0 01-.288-.376 6.18 6.18 0 01-.248-.471c-.623.734-1.405 1.101-2.347 1.101-.671 0-1.205-.192-1.597-.576-.392-.384-.591-.894-.591-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.839.064.287.04.583.104.895.176v-.568c0-.607-.127-1.03-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.295.072-.583.16-.863.272a2.287 2.287 0 01-.28.104.488.488 0 01-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 01.224-.167c.28-.144.616-.264 1.005-.36a4.84 4.84 0 011.246-.151c.95 0 1.644.216 2.091.647.439.43.663 1.083.663 1.955v2.571zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 00-.727-.136 5.952 5.952 0 00-.743-.048c-.528 0-.917.104-1.178.32-.26.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.81.296zm6.324.839c-.144 0-.24-.024-.304-.08-.063-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 01-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.246-5.284c.04-.16.088-.264.151-.312a.549.549 0 01.32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 01.311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 01-.056.2l-1.923 6.148c-.048.16-.104.263-.168.311a.51.51 0 01-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.32l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.32-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 01-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 00.415-.758.777.777 0 00-.215-.559c-.144-.151-.416-.287-.807-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 01-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.815-.415.304-.096.624-.144.958-.144.168 0 .343.008.51.032.176.024.336.056.487.088.144.04.279.08.407.127.128.048.224.096.296.144a.605.605 0 01.208.183.43.43 0 01.056.222v.375c0 .168-.064.256-.184.256a.83.83 0 01-.303-.096 3.652 3.652 0 00-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.159.152.454.304.877.44l1.134.358c.574.184.99.44 1.237.767.247.329.371.703.371 1.116 0 .343-.072.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.743.167-1.157.167z"/></svg>
+      SOLUTIONS ARCHITECT PRO
+    </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="dashboard">
+    <div class="stat-card">
+      <div class="stat-label">AUTH STATUS</div>
+      <div class="stat-value"><span class="live-dot"></span>SECURE</div>
+      <div class="stat-sub">ZERO TRUST · ACTIVE</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-label">INTEGRATIONS</div>
+      <div class="stat-value">6</div>
+      <div class="stat-sub">ACTIVE API CONNECTIONS</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">THREAT LEVEL</div>
+      <div class="stat-value">LOW</div>
+      <div class="threat-bars">
+        <div class="bar" style="background:var(--green)"></div>
+        <div class="bar" style="background:rgba(0,255,100,0.25)"></div>
+        <div class="bar" style="background:rgba(0,255,100,0.15)"></div>
+        <div class="bar" style="background:rgba(255,60,60,0.1)"></div>
+        <div class="bar" style="background:rgba(255,60,60,0.1)"></div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">ENCRYPTION</div>
+      <div class="stat-value" style="font-size:16px">AES-256</div>
+      <div class="stat-sub">GCM · TLS 1.3</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-label">UPTIME</div>
+      <div class="stat-value">99.9%</div>
+      <div class="stat-sub">SLA · VERIFIED</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">BREACHES</div>
+      <div class="stat-value">0</div>
+      <div class="stat-sub">INCIDENTS · CONTAINED</div>
+    </div>
+  </div>
+
+  <!-- SHIELD SVG -->
+  <div class="shield-section">
+    <svg class="shield-svg" viewBox="0 0 500 400" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="sg1" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#00ff64" stop-opacity="0.1"/>
+          <stop offset="100%" stop-color="#00ff64" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="sf" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#0a2a1a"/>
+          <stop offset="100%" stop-color="#001208"/>
+        </linearGradient>
+        <filter id="fg"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="fg2"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00ff64"/>
+          <stop offset="100%" stop-color="#00c8ff"/>
+        </linearGradient>
+        <linearGradient id="tg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#00ff64"/>
+          <stop offset="50%" stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#00c8ff"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Background glow -->
+      <ellipse cx="250" cy="200" rx="200" ry="180" fill="url(#sg1)">
+        <animate attributeName="rx" values="180;210;180" dur="3s" repeatCount="indefinite"/>
+        <animate attributeName="ry" values="160;190;160" dur="3s" repeatCount="indefinite"/>
+      </ellipse>
+
+      <!-- Orbit rings -->
+      <circle cx="250" cy="200" r="170" fill="none" stroke="#00ff64" stroke-width="0.5" stroke-opacity="0.2" stroke-dasharray="4 6"/>
+      <circle cx="250" cy="200" r="195" fill="none" stroke="#00c8ff" stroke-width="0.5" stroke-opacity="0.12" stroke-dasharray="2 8"/>
+
+      <!-- Orbiting dots -->
+      <circle r="5" fill="#00ff64" filter="url(#fg)">
+        <animateMotion dur="8s" repeatCount="indefinite" path="M250,30 A170,170 0 1,1 249.99,30"/>
+      </circle>
+      <circle r="4" fill="#00c8ff" filter="url(#fg)">
+        <animateMotion dur="13s" repeatCount="indefinite" path="M250,5 A195,195 0 1,0 249.99,5"/>
+      </circle>
+
+      <!-- Tool nodes -->
+      <!-- SNYK top -->
+      <g transform="translate(250,28)">
+        <circle r="20" fill="#001a0a" stroke="#00ff64" stroke-width="1.5" stroke-opacity="0.7"/>
+        <circle r="20" fill="none" stroke="#00ff64" stroke-width="1">
+          <animate attributeName="r" values="20;27;20" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <text x="0" y="5" text-anchor="middle" font-family="monospace" font-size="9" fill="#00ff64" font-weight="bold">SNYK</text>
+      </g>
+      <!-- QUALYS bottom -->
+      <g transform="translate(250,372)">
+        <circle r="20" fill="#001a0a" stroke="#00ff64" stroke-width="1.5" stroke-opacity="0.7"/>
+        <circle r="20" fill="none" stroke="#00ff64" stroke-width="1">
+          <animate attributeName="r" values="20;27;20" dur="2.4s" repeatCount="indefinite" begin="0.4s"/>
+          <animate attributeName="stroke-opacity" values="0.4;0;0.4" dur="2.4s" repeatCount="indefinite" begin="0.4s"/>
+        </circle>
+        <text x="0" y="5" text-anchor="middle" font-family="monospace" font-size="9" fill="#00ff64" font-weight="bold">QUALYS</text>
+      </g>
+      <!-- CYBERARK top-left -->
+      <g transform="translate(62,95)">
+        <circle r="22" fill="#001a0a" stroke="#00ff64" stroke-width="1.5" stroke-opacity="0.7"/>
+        <circle r="22" fill="none" stroke="#00ff64" stroke-width="1">
+          <animate attributeName="r" values="22;30;22" dur="2.8s" repeatCount="indefinite" begin="0.8s"/>
+          <animate attributeName="stroke-opacity" values="0.4;0;0.4" dur="2.8s" repeatCount="indefinite" begin="0.8s"/>
+        </circle>
+        <text x="0" y="-2" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#00ff64" font-weight="bold">CYBER</text>
+        <text x="0" y="9" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#00ff64" font-weight="bold">ARK</text>
+      </g>
+      <!-- SPLUNK top-right -->
+      <g transform="translate(438,95)">
+        <circle r="22" fill="#000d1a" stroke="#00c8ff" stroke-width="1.5" stroke-opacity="0.7"/>
+        <circle r="22" fill="none" stroke="#00c8ff" stroke-width="1">
+          <animate attributeName="r" values="22;30;22" dur="2.2s" repeatCount="indefinite" begin="0.2s"/>
+          <animate attributeName="stroke-opacity" values="0.4;0;0.4" dur="2.2s" repeatCount="indefinite" begin="0.2s"/>
+        </circle>
+        <text x="0" y="5" text-anchor="middle" font-family="monospace" font-size="8" fill="#00c8ff" font-weight="bold">SPLUNK</text>
+      </g>
+      <!-- HASHIVAULT bottom-left -->
+      <g transform="translate(55,305)">
+        <circle r="22" fill="#001a0a" stroke="#00ff64" stroke-width="1.5" stroke-opacity="0.7"/>
+        <circle r="22" fill="none" stroke="#00ff64" stroke-width="1">
+          <animate attributeName="r" values="22;30;22" dur="3s" repeatCount="indefinite" begin="1.2s"/>
+          <animate attributeName="stroke-opacity" values="0.4;0;0.4" dur="3s" repeatCount="indefinite" begin="1.2s"/>
+        </circle>
+        <text x="0" y="-2" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#00ff64" font-weight="bold">HASHI</text>
+        <text x="0" y="9" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#00ff64" font-weight="bold">VAULT</text>
+      </g>
+      <!-- VERACODE bottom-right -->
+      <g transform="translate(445,305)">
+        <circle r="22" fill="#000d1a" stroke="#00c8ff" stroke-width="1.5" stroke-opacity="0.7"/>
+        <circle r="22" fill="none" stroke="#00c8ff" stroke-width="1">
+          <animate attributeName="r" values="22;30;22" dur="2.6s" repeatCount="indefinite" begin="0.6s"/>
+          <animate attributeName="stroke-opacity" values="0.4;0;0.4" dur="2.6s" repeatCount="indefinite" begin="0.6s"/>
+        </circle>
+        <text x="0" y="-2" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#00c8ff" font-weight="bold">VERA</text>
+        <text x="0" y="9" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#00c8ff" font-weight="bold">CODE</text>
+      </g>
+
+      <!-- Connection lines -->
+      <line x1="250" y1="155" x2="250" y2="48" stroke="#00ff64" stroke-width="0.8" stroke-opacity="0.3"/>
+      <line x1="250" y1="245" x2="250" y2="352" stroke="#00ff64" stroke-width="0.8" stroke-opacity="0.3"/>
+      <line x1="175" y1="168" x2="82" y2="112" stroke="#00ff64" stroke-width="0.8" stroke-opacity="0.3"/>
+      <line x1="325" y1="168" x2="418" y2="112" stroke="#00c8ff" stroke-width="0.8" stroke-opacity="0.3"/>
+      <line x1="175" y1="232" x2="77" y2="288" stroke="#00ff64" stroke-width="0.8" stroke-opacity="0.3"/>
+      <line x1="325" y1="232" x2="423" y2="288" stroke="#00c8ff" stroke-width="0.8" stroke-opacity="0.3"/>
+
+      <!-- Animated packets -->
+      <circle r="3" fill="#00ff64" filter="url(#fg)" opacity="0.9">
+        <animateMotion dur="2.5s" repeatCount="indefinite" begin="0s" path="M250,48 L250,155"/>
+      </circle>
+      <circle r="3" fill="#00ff64" filter="url(#fg)" opacity="0.9">
+        <animateMotion dur="3s" repeatCount="indefinite" begin="0.5s" path="M250,352 L250,245"/>
+      </circle>
+      <circle r="3" fill="#00c8ff" filter="url(#fg)" opacity="0.9">
+        <animateMotion dur="2.8s" repeatCount="indefinite" begin="1s" path="M82,112 L175,168"/>
+      </circle>
+      <circle r="3" fill="#00c8ff" filter="url(#fg)" opacity="0.9">
+        <animateMotion dur="2.2s" repeatCount="indefinite" begin="0.3s" path="M418,112 L325,168"/>
+      </circle>
+      <circle r="3" fill="#00ff64" filter="url(#fg)" opacity="0.9">
+        <animateMotion dur="3.2s" repeatCount="indefinite" begin="1.5s" path="M77,288 L175,232"/>
+      </circle>
+      <circle r="3" fill="#00c8ff" filter="url(#fg)" opacity="0.9">
+        <animateMotion dur="2.6s" repeatCount="indefinite" begin="0.8s" path="M423,288 L325,232"/>
+      </circle>
+
+      <!-- Main Shield -->
+      <g transform="translate(250,200)">
+        <path d="M0,-90 L78,-45 L78,45 L0,90 L-78,45 L-78,-45 Z" fill="#00ff64" opacity="0.03" filter="url(#fg2)"/>
+        <path d="M0,-90 L78,-45 L78,45 L0,90 L-78,45 L-78,-45 Z" fill="url(#sf)" stroke="#00ff64" stroke-width="2" stroke-opacity="0.8"/>
+        <path d="M0,-72 L62,-36 L62,36 L0,72 L-62,36 L-62,-36 Z" fill="none" stroke="#00ff64" stroke-width="0.5" stroke-opacity="0.2"/>
+        <path d="M0,-90 L78,-45 L78,45 L0,90 L-78,45 L-78,-45 Z" fill="#00ff64" opacity="0">
+          <animate attributeName="opacity" values="0;0.06;0" dur="3s" repeatCount="indefinite"/>
+        </path>
+        <text x="0" y="-12" text-anchor="middle" font-family="'Courier New',monospace" font-size="30" font-weight="900" fill="url(#tg)" filter="url(#fg2)" letter-spacing="4">MCP</text>
+        <text x="0" y="6" text-anchor="middle" font-family="monospace" font-size="7" fill="rgba(0,255,100,0.5)" letter-spacing="5">SERVER</text>
+        <!-- Lock -->
+        <g transform="translate(0,36)">
+          <rect x="-11" y="0" width="22" height="17" rx="3" fill="url(#lg)" opacity="0.85"/>
+          <path d="M-7,-2 L-7,-9 Q0,-16 7,-9 L7,-2" fill="none" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="0" cy="8" r="3" fill="rgba(0,0,0,0.5)"/>
+          <rect x="-1.5" y="8" width="3" height="5" rx="1" fill="rgba(0,0,0,0.5)"/>
+        </g>
+        <!-- Corner accents -->
+        <g stroke="#00ff64" stroke-width="1.5" stroke-opacity="0.5" fill="none">
+          <path d="M-55,-32 L-70,-32 L-70,-47"/>
+          <path d="M55,-32 L70,-32 L70,-47"/>
+          <path d="M-55,32 L-70,32 L-70,47"/>
+          <path d="M55,32 L70,32 L70,47"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  <!-- TOOLS SECTION -->
+  <div class="section-title">🔌 <span>ACTIVE</span> SECURITY INTEGRATIONS</div>
+  <div class="tools-grid">
+    <div class="tool-card">
+      <div class="tool-dot"></div>
+      <div class="tool-name">SNYK</div>
+      <div class="tool-desc">Vulnerability Scanning & SCA</div>
+    </div>
+    <div class="tool-card blue">
+      <div class="tool-dot"></div>
+      <div class="tool-name">SPLUNK</div>
+      <div class="tool-desc">SIEM & Log Correlation</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-dot"></div>
+      <div class="tool-name">CYBERARK</div>
+      <div class="tool-desc">Privileged Access Mgmt</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-dot"></div>
+      <div class="tool-name">HASHIVAULT</div>
+      <div class="tool-desc">Secrets Management</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-dot"></div>
+      <div class="tool-name">BLACK DUCK</div>
+      <div class="tool-desc">Open Source Security</div>
+    </div>
+    <div class="tool-card blue">
+      <div class="tool-dot"></div>
+      <div class="tool-name">VERACODE</div>
+      <div class="tool-desc">SAST / DAST Testing</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-dot"></div>
+      <div class="tool-name">QUALYS</div>
+      <div class="tool-desc">Cloud Security Posture</div>
+    </div>
+  </div>
+
+  <!-- OPERATIONS -->
+  <div class="section-title">🎯 <span>SECURITY</span> OPERATIONS</div>
+  <div class="ops-grid">
+    <div class="op-card">
+      <div class="op-header">
+        <div class="op-icon">🔩</div>
+        <div class="op-title">NFR AUTOMATION</div>
+      </div>
+      <div class="op-body">
+        Architecting automation framework for Non-Functional Requirements validation — embedding performance, scalability, and security gates into CI/CD pipelines.
+        <br/><br/>
+        <span class="op-tag">CI/CD</span>
+        <span class="op-tag">AUTOMATION</span>
+        <span class="op-tag">PERFORMANCE</span>
+        <span class="op-tag">SCALABILITY</span>
+      </div>
+    </div>
+    <div class="op-card">
+      <div class="op-header">
+        <div class="op-icon">🛡️</div>
+        <div class="op-title">COMPLIANCE DASHBOARD</div>
+      </div>
+      <div class="op-body">
+        Engineering a custom API-driven security compliance dashboard consolidating vulnerability telemetry from 7 security tools into a unified real-time risk visibility layer.
+        <br/><br/>
+        <span class="op-tag">API</span>
+        <span class="op-tag">DASHBOARD</span>
+        <span class="op-tag">COMPLIANCE</span>
+        <span class="op-tag">REAL-TIME</span>
+      </div>
+    </div>
+    <div class="op-card">
+      <div class="op-header">
+        <div class="op-icon">⚔️</div>
+        <div class="op-title">PENETRATION TESTING</div>
+      </div>
+      <div class="op-body">
+        Executing black-box & grey-box assessments on external-facing applications. Identifying exploitable vulnerabilities across web, API, and authentication layers.
+        <br/><br/>
+        <span class="op-tag">OWASP TOP 10</span>
+        <span class="op-tag">API SECURITY</span>
+        <span class="op-tag">BLACK-BOX</span>
+        <span class="op-tag">GREY-BOX</span>
+      </div>
+    </div>
+    <div class="op-card">
+      <div class="op-header">
+        <div class="op-icon">🔵</div>
+        <div class="op-title">BLUE TEAM / IR</div>
+      </div>
+      <div class="op-body">
+        Engaged in defensive security operations — triaging incidents, correlating SIEM alerts, and investigating external account takeover (ATO) attempts through log forensics and threat hunting.
+        <br/><br/>
+        <span class="op-tag">INCIDENT RESPONSE</span>
+        <span class="op-tag">SIEM</span>
+        <span class="op-tag">ATO</span>
+        <span class="op-tag">THREAT HUNTING</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span class="live-dot"></span>
+    ZERO TRUST &nbsp;·&nbsp; AES-256-GCM &nbsp;·&nbsp; TLS 1.3 &nbsp;·&nbsp; DEFENSIVE SECURITY &nbsp;·&nbsp; MCP SERVER
+    <br/><br/>
+    <a href="https://github.com/bidur123">github.com/bidur123</a>
+  </div>
+
+</div>
+</body>
+</html>
