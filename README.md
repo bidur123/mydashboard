@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="./assets/mcp-security.svg" alt="MCP Security Operations Dashboard" width="100%"/>
+  <img src="https://raw.githubusercontent.com/bidur123/mydashboard/main/assets/mcp-security.svg" 
+       alt="MCP Security Operations Dashboard" width="100%"/>
 </div>
-
 ---
 
 <div align="center">
